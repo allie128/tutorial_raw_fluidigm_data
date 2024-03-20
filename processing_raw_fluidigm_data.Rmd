@@ -75,7 +75,7 @@ First, let's begin the pipeline to produce consensus, ambiguities, and occurrenc
 
 ```{r}
 #fill in the prefix of your sequence files (whatever comes before _R1.fastq.gz)
-basename <- "Bd_Fluidigm_V3_1_31_23"
+basename <- "Bd_Fluidigm_V3_7_20_20"
 
 R1 <- paste(basename,"_R1.fastq.gz",sep="")
 R2 <- paste(basename,"_R2.fastq.gz",sep="")
@@ -532,5 +532,12 @@ freebayes -f freebayes/ref_amp.fa -L bamlist.txt -t freebayes/ref_amp_activeRegi
 ```
 
 Now you have a .vcf file you can use to make PCAs and do other analyses on variants.
+
 Note that you may need to do additional variant and/or individual filtration depending on your samples.
+
+Now you can use the sequences and vcf file you processed and follow the following tutorials from previous workshops:
+
+[RIBBiTR workshop 2022](https://github.com/allie128/RIBBiTR_workshop)
+
+[RIBBiTR workshop 2023](https://github.com/allie128/workshop_Costa_Rica)
 
