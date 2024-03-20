@@ -1,15 +1,19 @@
----
-title: "processing_raw_fluidigm_data"
-output: github_document
-author: Allie Byrne
-editor_options: 
-  chunk_output_type: console
----
-The purpose of this document is to show you how to process raw sequencing data produced by running Bd samples on the Fludigim Access array system. You will go from raw sequencing data (typically in the form of XXX_R1.fastq.gz and XXX_R2.fastq.gz) to sequence (consensus, ambiguities, occurrence) and variant data files. These files can then be used to create trees, PCAs, etc. 
+processing\_raw\_fluidigm\_data
+================
+Allie Byrne
 
-Each chunk in this file indicates whether it is run in R or in bash (i.e., terminal in mac).
+The purpose of this document is to show you how to process raw
+sequencing data produced by running Bd samples on the Fludigim Access
+array system. You will go from raw sequencing data (typically in the
+form of XXX\_R1.fastq.gz and XXX\_R2.fastq.gz) to sequence (consensus,
+ambiguities, occurrence) and variant data files. These files can then be
+used to create trees, PCAs, etc.
 
-In addition to some analyses in this code, to fully process the data you will also need to download and install the following programs:
+Each chunk in this file indicates whether it is run in R or in bash
+(i.e., terminal in mac).
+
+In addition to some analyses in this code, to fully process the data you
+will also need to download and install the following programs:
 
 [flash](https://ccb.jhu.edu/software/FLASH/#:~:text=FLASH%20is%20designed%20to%20merge,to%20merge%20RNA%2Dseq%20data.)
 
@@ -22,58 +26,16 @@ In addition to some analyses in this code, to fully process the data you will al
 [freebayes](https://github.com/freebayes/freebayes)
 
 First, install and load the R packages we need.
-```{r setup, include=FALSE}
-if (!require(knitr)){
-  install.packages("knitr")
-  library(knitr)
-}
-if (!require(BiocManager)){
-  install.packages("BiocManager")
-  library(BiocManager)
-}
-if (!require(Biostrings)){
-  BiocManager::install("Biostrings")
-  library(Biostrings)
-}
-if (!require(ShortRead)){
-  BiocManager::install("ShortRead")
-  library(ShortRead)
-}
-if (!require(ggplot2)){
-  install.packages("ggplot2")
-  library(ggplot2)
-}
-if (!require(optparse)){
-  install.packages("optparse")
-  library(optparse)
-}
-if (!require(parallel)){
-  install.packages("parallel")
-  library(parallel)
-}
-if (!require(RColorBrewer)){
-  install.packages("RColorBrewer")
-  library(RColorBrewer)
-}
-if (!require(reshape)){
-  install.packages("reshape")
-  library(reshape)
-}
-if (!require(plyr)){
-  install.packages("plyr")
-  library(plyr)
-}
 
-knitr::opts_chunk$set(eval = FALSE)
+\#Producing consensus, ambiguities, and occurrence sequences
 
-```
+First, let’s begin the pipeline to produce consensus, ambiguities, and
+occurrence sequences from our raw data. For this we will use the program
+flash2 to combine read1 and read2 into paired reads. In my case I
+downloaded flash and the executable file is within my working directory
+in the “FLASH-1.2.11” folder.
 
-#Producing consensus, ambiguities, and occurrence sequences
-
-First, let's begin the pipeline to produce consensus, ambiguities, and occurrence sequences from our raw data. For this we will use the program flash2 to combine read1 and read2 into paired reads. In my case I downloaded flash and the executable file is within my working directory in the "FLASH-1.2.11" folder.
-
-
-```{r}
+``` r
 #fill in the prefix of your sequence files (whatever comes before _R1.fastq.gz)
 basename <- "Bd_Fluidigm_V3_7_20_20"
 
@@ -89,14 +51,22 @@ call <- paste("./FLASH-1.2.11/flash --max-overlap=600 --allow-outies -x 0.25 -z 
   
 #run the command
 system(call)
-
 ```
 
-This will output the joined reads in the "flash_output" folder with the prefix as the basename. 
+This will output the joined reads in the “flash\_output” folder with the
+prefix as the basename.
 
-Now we can run reduce_amplicons which is a script originally written by [Matt Settles](https://github.com/msettles/dbcAmplicons/blob/master/scripts/R/reduce_amplicons.R). This script takes your joined reads and produces three different files: consensus (most common sequence for each sample/amplicon), ambiguities (one sequence per sample/amplicon with multiple alleles coded with IUPAC ambiguity codes), and occurrence (all individual sequences for each sample/allele). These will be output into a folder named as the basename variable.
+Now we can run reduce\_amplicons which is a script originally written by
+[Matt
+Settles](https://github.com/msettles/dbcAmplicons/blob/master/scripts/R/reduce_amplicons.R).
+This script takes your joined reads and produces three different files:
+consensus (most common sequence for each sample/amplicon), ambiguities
+(one sequence per sample/amplicon with multiple alleles coded with IUPAC
+ambiguity codes), and occurrence (all individual sequences for each
+sample/allele). These will be output into a folder named as the basename
+variable.
 
-```{r}
+``` r
 #establish some parameters for running the programs
 arguments <- list(options = list(program="consensus,ambiguities,occurrence",min_seq=5,min_freq=0.05,trimOne=0,trimTwo=0,reuse=TRUE,output=basename,procs=8),args=basename)
 
@@ -157,11 +127,9 @@ uprimer <- sort(unique(c(primer,primer_p)))
 uid <- sort(unique(c(id,id_p)))
 ```
 
-
 This chuck contains the analysis functions.
 
-```{r}
-
+``` r
 ### Analysis Functions BEGIN
 
 ## consensus
@@ -300,12 +268,11 @@ This chuck contains the analysis functions.
 
 
 ### Analysis Functions END
-
 ```
 
 This chunk merges the reads to prepare for analysis
 
-```{r}
+``` r
 ## merge
 merged <- DNAStringSet(paste(as.character(sread(fq_r1)),".....",as.character(reverseComplement(sread(fq_r2))),sep=""))
 names(merged) <- nms_p
@@ -322,10 +289,10 @@ splitfq <- split(single,paste(id,primer,sep=":"))
 splitfq_p <- split(merged,paste(id_p,primer_p,sep=":"))
 ```
 
+This chunk runs the programs. WARNING it takes awhile to run. Could run
+overnight.
 
-This chunk runs the programs. WARNING it takes awhile to run. Could run overnight. 
-
-```{r}
+``` r
 #run the programs
 
 sapply(program_list,function(program){
@@ -372,7 +339,6 @@ sapply(program_list,function(program){
     mclapply(names(split_tt), function(x){
         writeXStringSet(split_tt[[x]],file.path(output,paste(program,"split_amplicon",sep="."),paste("Amplicon",x,"fasta",sep=".")))
     }, mc.cores = procs)
-
 
     write(paste("Producing final images"),stdout())
     #### PLOTTING RESULTS    
@@ -427,14 +393,15 @@ sapply(program_list,function(program){
 write("Finished",stdout())
 ```
 
-Now we have our consensus, ambiguities, and occurrence files for downstream analysis. 
-#Calling Variants
+Now we have our consensus, ambiguities, and occurrence files for
+downstream analysis. \#Calling Variants
 
-Let's continue to process the data to call variants.
+Let’s continue to process the data to call variants.
 
-First we will split the FASTQ file produced by flash into separate sample FASTQ files.
-```{r}
-  
+First we will split the FASTQ file produced by flash into separate
+sample FASTQ files.
+
+``` r
 split_tt <- split(fq,id)
 dir.create("split_samples")
 #procs = 2 not supported on windows
@@ -443,11 +410,13 @@ mclapply(names(split_tt), function(x){
 })
 ```
 
-With seperate fastqs index our reference and align/create bams for each sample against reference.
+With seperate fastqs index our reference and align/create bams for each
+sample against reference.
 
-*run this on your own time when you have programs ready to go or on a cluster*
+*run this on your own time when you have programs ready to go or on a
+cluster*
 
-```{r}
+``` r
 #list split files
 fqFiles <- list.files("./split_samples")
 
@@ -480,9 +449,10 @@ list1 <-paste("java -Xmx2g -jar /clusterfs/vector/home/groups/software/sl-7.x86_
 write.csv(list1, file="db_picard_sort_commands.csv")
 ```
 
-clean up anything in bams folder that doesn't end with sort.bam - BE CAREFUL !!!!!!
+clean up anything in bams folder that doesn’t end with sort.bam - BE
+CAREFUL \!\!\!\!\!\!
 
-```{bash}
+``` bash
 cd bams
 ls | grep -v sort.bam
 ls | grep -v sort.bam | xargs rm
@@ -490,30 +460,31 @@ ls | grep -v sort.bam | xargs rm
 
 index bams with samtools
 
-```{bash}
+``` bash
 #do this on the cluster
 
 ##!/usr/bin/env bash
 #for i in *.bam;
 #do
-#	samtools index $i
+#   samtools index $i
 #done;
 
 cd bams > samtool_index.sh
-
 ```
 
 Get active region list
-```{r}
+
+``` r
 xx = readDNAStringSet("Bd_Fl_ref_amplicon_seqs_noprimer.fasta")
 write.table(paste(names(xx),paste(1,width(xx),sep="-"),sep=":"),"ref_amp_activeRegions.txt",quote=F,row.names=F,col.names=F)
 write.table(paste(names(xx),paste(1,width(xx),sep=" "),sep=" "),
             "ref_amp_activeRegions.bed",quote=F,row.names=F,col.names=F)
 ```
 
-run Freebayes - beforehand make a list of all your bams as a text file to feed in each bam
+run Freebayes - beforehand make a list of all your bams as a text file
+to feed in each bam
 
-```{bash}
+``` bash
 #makes a list of all the bam files
 for (i in 1:length(fqFiles)){
   if (i == 1){
@@ -531,13 +502,15 @@ write.csv(list1, file="db_bamlist.csv")
 freebayes -f freebayes/ref_amp.fa -L bamlist.txt -t freebayes/ref_amp_activeRegions.bed -0 -X --haplotype-length 0 -kwVa --no-mnps --min-coverage 10 --no-complex --use-best-n-alleles 4 --min-alternate-count 5 --min-alternate-fraction 0.3 > freebayes/ltreb_freebae_newref.vcf
 ```
 
-Now you have a .vcf file you can use to make PCAs and do other analyses on variants.
+Now you have a .vcf file you can use to make PCAs and do other analyses
+on variants.
 
-Note that you may need to do additional variant and/or individual filtration depending on your samples.
+Note that you may need to do additional variant and/or individual
+filtration depending on your samples.
 
-Now you can use the sequences and vcf file you processed and follow the following tutorials from previous workshops:
+Now you can use the sequences and vcf file you processed and follow the
+following tutorials from previous workshops:
 
 [RIBBiTR workshop 2022](https://github.com/allie128/RIBBiTR_workshop)
 
 [RIBBiTR workshop 2023](https://github.com/allie128/workshop_Costa_Rica)
-
